@@ -5,7 +5,6 @@ package iotdb
 
 import (
 	_ "embed"
-	"errors"
 	"fmt"
 
 	// Register IoTDB go client
@@ -44,9 +43,10 @@ func (s *IoTDB) Connect() error {
 	// Check the configuration
 	if s.Timeout < 0 {
 		var errorMsg string
-		errorMsg = fmt.Sprintf("Configuration Error: The value of 'timeout' should be greater than or equal to 0, but it's value is:%d.", s.Timeout)
+		errorMsg = fmt.Sprintf("IoTDB Configuration Warning: The value of 'timeout' should be greater than or equal to 0, but it's value is:%d. Now it's fixed to 0.", s.Timeout)
 		s.Log.Errorf(errorMsg)
-		return errors.New(errorMsg)
+		// return errors.New(errorMsg)
+		s.Timeout = 0
 	}
 
 	config := &client.Config{
@@ -57,7 +57,7 @@ func (s *IoTDB) Connect() error {
 	}
 	s.session = client.NewSession(config)
 	if err := s.session.Open(false, s.Timeout); err != nil {
-		s.Log.Errorf("Connect Error: Fail to connect host:'%s', port:'%s', err:%v", s.Host, s.Port, err)
+		s.Log.Errorf("IoTDB Connect Error: Fail to connect host:'%s', port:'%s', err:%v", s.Host, s.Port, err)
 		return err
 	}
 
@@ -67,6 +67,10 @@ func (s *IoTDB) Connect() error {
 func (s *IoTDB) Close() error {
 	// Close any connections here.
 	// Write will not be called once Close is called, so there is no need to synchronize.
+	_, err := s.session.Close()
+	if err != nil {
+		s.Log.Errorf("IoTDB Close Error: %v", err)
+	}
 	return nil
 }
 
