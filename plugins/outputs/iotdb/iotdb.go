@@ -73,7 +73,7 @@ func (s *IoTDB) Connect() error {
 		UserName: s.User,
 		Password: s.Password,
 	}
-	s.session = client.NewSession(config)
+	*(s.session) = client.NewSession(config)
 	if err := s.session.Open(false, s.Timeout); err != nil {
 		s.Log.Errorf("IoTDB Connect Error: Fail to connect host:'%s', port:'%s', err:%v", s.Host, s.Port, err)
 		return err
