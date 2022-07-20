@@ -57,9 +57,9 @@ func (s *IoTDB) Init() error {
 		s.TimeStampUnit == "millisecond" ||
 		s.TimeStampUnit == "microsecond" ||
 		s.TimeStampUnit == "nanosecond") {
-		errorMsg = fmt.Sprintf("IoTDB Config Warning: The value of 'TimeStampUnit' is invaild: %s. Now it's fixed to 'second'.", s.TimeStampUnit)
+		errorMsg = fmt.Sprintf("IoTDB Config Warning: The value of 'TimeStampUnit' is invaild: %s. Now it's fixed to 'nanosecond'.", s.TimeStampUnit)
 		s.Log.Warnf(errorMsg)
-		s.TimeStampUnit = "second"
+		s.TimeStampUnit = "nanosecond"
 	}
 	return nil
 }
@@ -73,7 +73,8 @@ func (s *IoTDB) Connect() error {
 		UserName: s.User,
 		Password: s.Password,
 	}
-	*(s.session) = client.NewSession(config)
+	var ss = client.NewSession(config)
+	s.session = &ss
 	if err := s.session.Open(false, s.Timeout); err != nil {
 		s.Log.Errorf("IoTDB Connect Error: Fail to connect host:'%s', port:'%s', err:%v", s.Host, s.Port, err)
 		return err
