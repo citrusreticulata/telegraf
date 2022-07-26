@@ -114,61 +114,15 @@ func (s *IoTDB) Close() error {
 // (Telegraf manages the buffer for you). Returning an error will fail this
 // batch of writes and the entire batch will be retried automatically.
 func (s *IoTDB) Write(metrics []telegraf.Metric) error {
-
-	var deviceId_list []string
-	var measurements_list [][]string
-	var values_list [][]interface{}
-	var dataTypes_list [][]client.TSDataType
-	var timestamp_list []int64
-	var tags_list [][]*telegraf.Tag
-
-	for _, metric := range metrics {
-		// write `metric` to the output sink here
-		var tags []*telegraf.Tag
-		tags = append(tags, metric.TagList()...)
-		// deal with basic paramter
-		var keys []string
-		var values []interface{}
-		var dataTypes []client.TSDataType
-		for _, field := range metric.FieldList() {
-			datatype, value := s.getDataTypeAndValue(field.Value)
-			if datatype != client.UNKNOW {
-				keys = append(keys, field.Key)
-				values = append(values, value)
-				dataTypes = append(dataTypes, datatype)
-			}
-		}
-		if s.TimeStampUnit == "second" {
-			timestamp_list = append(timestamp_list, metric.Time().Unix())
-		} else if s.TimeStampUnit == "millisecond" {
-			timestamp_list = append(timestamp_list, metric.Time().UnixMilli())
-		} else if s.TimeStampUnit == "microsecond" {
-			timestamp_list = append(timestamp_list, metric.Time().UnixMicro())
-		} else if s.TimeStampUnit == "nanosecond" {
-			timestamp_list = append(timestamp_list, metric.Time().UnixNano())
-		} else { // something go wrong. This configuration should have been checked in func Init().
-			errorMsg := fmt.Sprintf("IoTDB Configuration Error: unknown TimeStampUnit: %s", s.TimeStampUnit)
-			s.Log.Errorf(errorMsg)
-			return errors.New(errorMsg)
-		}
-		// append all metric date of this record to list
-		deviceId_list = append(deviceId_list, metric.Name())
-		measurements_list = append(measurements_list, keys)
-		values_list = append(values_list, values)
-		dataTypes_list = append(dataTypes_list, dataTypes)
-		tags_list = append(tags_list, tags)
+	// Convert Metrics to Records with Tags
+	records_withTags, err := s.ConvertMetricsToRecordsWithTags(metrics)
+	if err != nil {
+		s.Log.Errorf(err.Error())
+		return err
 	}
 	// Wirte to client
-	var records_withTags = &RecordsWithTags{
-		DeviceId_list:     deviceId_list,
-		Measurements_list: measurements_list,
-		Values_list:       values_list,
-		DataTypes_list:    dataTypes_list,
-		Timestamp_list:    timestamp_list,
-		Tags_list:         tags_list,
-	}
 	// status, err := s.session.InsertRecords(deviceId_list, measurements_list, dataTypes_list, values_list, timestamp_list)
-	err := s.WriteRecordsWithTags(records_withTags)
+	err = s.WriteRecordsWithTags(records_withTags)
 	if err != nil {
 		s.Log.Errorf(err.Error())
 	}
@@ -211,9 +165,64 @@ func (s *IoTDB) getDataTypeAndValue(value interface{}) (client.TSDataType, inter
 	}
 }
 
-// Write records with tags to IoTDB server
-func (s *IoTDB) WriteRecordsWithTags(rwt *RecordsWithTags) error {
-	// deal with tags
+// convert Metrics to Records with tags
+func (s *IoTDB) ConvertMetricsToRecordsWithTags(metrics []telegraf.Metric) (*RecordsWithTags, error) {
+	var deviceId_list []string
+	var measurements_list [][]string
+	var values_list [][]interface{}
+	var dataTypes_list [][]client.TSDataType
+	var timestamp_list []int64
+	var tags_list [][]*telegraf.Tag
+
+	for _, metric := range metrics {
+		// write `metric` to the output sink here
+		var tags []*telegraf.Tag
+		tags = append(tags, metric.TagList()...)
+		// deal with basic paramter
+		var keys []string
+		var values []interface{}
+		var dataTypes []client.TSDataType
+		for _, field := range metric.FieldList() {
+			datatype, value := s.getDataTypeAndValue(field.Value)
+			if datatype != client.UNKNOW {
+				keys = append(keys, field.Key)
+				values = append(values, value)
+				dataTypes = append(dataTypes, datatype)
+			}
+		}
+		if s.TimeStampUnit == "second" {
+			timestamp_list = append(timestamp_list, metric.Time().Unix())
+		} else if s.TimeStampUnit == "millisecond" {
+			timestamp_list = append(timestamp_list, metric.Time().UnixMilli())
+		} else if s.TimeStampUnit == "microsecond" {
+			timestamp_list = append(timestamp_list, metric.Time().UnixMicro())
+		} else if s.TimeStampUnit == "nanosecond" {
+			timestamp_list = append(timestamp_list, metric.Time().UnixNano())
+		} else { // something go wrong. This configuration should have been checked in func Init().
+			errorMsg := fmt.Sprintf("IoTDB Configuration Error: unknown TimeStampUnit: %s", s.TimeStampUnit)
+			s.Log.Errorf(errorMsg)
+			return nil, errors.New(errorMsg)
+		}
+		// append all metric date of this record to list
+		deviceId_list = append(deviceId_list, metric.Name())
+		measurements_list = append(measurements_list, keys)
+		values_list = append(values_list, values)
+		dataTypes_list = append(dataTypes_list, dataTypes)
+		tags_list = append(tags_list, tags)
+	}
+	var records_withTags = &RecordsWithTags{
+		DeviceId_list:     deviceId_list,
+		Measurements_list: measurements_list,
+		Values_list:       values_list,
+		DataTypes_list:    dataTypes_list,
+		Timestamp_list:    timestamp_list,
+		Tags_list:         tags_list,
+	}
+	return records_withTags, nil
+}
+
+// modifiy RecordsWithTags according to 'TreateTagsAs' Configuration
+func (s *IoTDB) ModifiyRecordsWithTags(rwt *RecordsWithTags) error {
 	if s.TreateTagsAs == "Measurements" {
 		// method 1: treate Tag(Key:Value) as measurement
 		for index, tags := range rwt.Tags_list { // for each record
@@ -240,7 +249,16 @@ func (s *IoTDB) WriteRecordsWithTags(rwt *RecordsWithTags) error {
 		s.Log.Errorf(errorMsg)
 		return errors.New(errorMsg)
 	}
+	return nil
+}
 
+// Write records with tags to IoTDB server
+func (s *IoTDB) WriteRecordsWithTags(rwt *RecordsWithTags) error {
+	// deal with tags
+	modify_err := s.ModifiyRecordsWithTags(rwt)
+	if modify_err != nil {
+		return modify_err
+	}
 	// write to IoTDB server
 	status, err := s.session.InsertRecords(rwt.DeviceId_list, rwt.Measurements_list,
 		rwt.DataTypes_list, rwt.Values_list, rwt.Timestamp_list)
