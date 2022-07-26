@@ -125,20 +125,12 @@ func (s *IoTDB) Write(metrics []telegraf.Metric) error {
 	for _, metric := range metrics {
 		// write `metric` to the output sink here
 		var tags []*telegraf.Tag
-		for _, tag := range metric.TagList() {
-			tags = append(tags, tag)
-			// datatype, value := s.getDataTypeAndValue(tag.Value)
-			// if datatype != client.UNKNOW {
-			// 	keys = append(keys, tag.Key)
-			// 	values = append(values, value)
-			// 	dataTypes = append(dataTypes, datatype)
-			// }
-		}
+		tags = append(tags, metric.TagList()...)
+		// deal with basic paramter
 		var keys []string
 		var values []interface{}
 		var dataTypes []client.TSDataType
 		for _, field := range metric.FieldList() {
-			//pk = append(pk, quoteIdent(tag.Key))
 			datatype, value := s.getDataTypeAndValue(field.Value)
 			if datatype != client.UNKNOW {
 				keys = append(keys, field.Key)
@@ -159,7 +151,7 @@ func (s *IoTDB) Write(metrics []telegraf.Metric) error {
 			s.Log.Errorf(errorMsg)
 			return errors.New(errorMsg)
 		}
-		// append other metric date to list
+		// append all metric date of this record to list
 		deviceId_list = append(deviceId_list, metric.Name())
 		measurements_list = append(measurements_list, keys)
 		values_list = append(values_list, values)
