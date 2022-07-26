@@ -112,26 +112,6 @@ var (
 			const_TestTimestamp,
 		),
 	}
-	testRecordsWithTags_01 = RecordsWithTags{
-		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
-		Measurements_list: [][]string{
-			{"temperature", "counter"}, {"temperature", "counter"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
-		},
-		Values_list: [][]interface{}{
-			{float64(42.55), int64(987654321)},
-			{float64(56.24), int64(123456789)},
-			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
-		},
-		DataTypes_list: [][]client.TSDataType{
-			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
-		},
-		Timestamp_list: []int64{
-			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
-		},
-	}
 )
 
 // compare two RecordsWithTags, returns True if and only if they are the same.
@@ -219,6 +199,26 @@ func TestMetricConvertion_01(t *testing.T) {
 
 	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
 	require.NoError(t, err)
+	var testRecordsWithTags_01 = RecordsWithTags{
+		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
+		Measurements_list: [][]string{
+			{"temperature", "counter"}, {"temperature", "counter"},
+			{"temperature", "counter", "unsigned", "string", "bool"},
+		},
+		Values_list: [][]interface{}{
+			{float64(42.55), int64(987654321)},
+			{float64(56.24), int64(123456789)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+		},
+		DataTypes_list: [][]client.TSDataType{
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+		},
+		Timestamp_list: []int64{
+			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
+		},
+	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_01, test_client.Log))
 }
 
@@ -236,9 +236,26 @@ func TestMetricConvertion_02(t *testing.T) {
 
 	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
 	require.NoError(t, err)
-	var testRecordsWithTags_02 = testRecordsWithTags_01
-	testRecordsWithTags_02.Values_list[2][2] = fmt.Sprintf("%d", uint64(math.MaxInt64+1000))
-	testRecordsWithTags_02.DataTypes_list[2][2] = client.TEXT
+	var testRecordsWithTags_02 = RecordsWithTags{
+		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
+		Measurements_list: [][]string{
+			{"temperature", "counter"}, {"temperature", "counter"},
+			{"temperature", "counter", "unsigned", "string", "bool"},
+		},
+		Values_list: [][]interface{}{
+			{float64(42.55), int64(987654321)},
+			{float64(56.24), int64(123456789)},
+			{float64(30.33), int64(123456789), fmt.Sprintf("%d", uint64(math.MaxInt64+1000)), "Made in China.", bool(false)},
+		},
+		DataTypes_list: [][]client.TSDataType{
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64, client.TEXT, client.TEXT, client.BOOLEAN},
+		},
+		Timestamp_list: []int64{
+			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
+		},
+	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_02, test_client.Log))
 }
 
@@ -256,11 +273,26 @@ func TestMetricConvertion_03(t *testing.T) {
 
 	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
 	require.NoError(t, err)
-	require.False(t, compareRecords(result, &testRecordsWithTags_01, test_client.Log))
-	var testRecordsWithTags_03 = testRecordsWithTags_01
-	testRecordsWithTags_03.Timestamp_list[0] = const_TestTimestamp.Unix()
-	testRecordsWithTags_03.Timestamp_list[1] = const_TestTimestamp.Unix()
-	testRecordsWithTags_03.Timestamp_list[2] = const_TestTimestamp.Unix()
+	var testRecordsWithTags_03 = RecordsWithTags{
+		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
+		Measurements_list: [][]string{
+			{"temperature", "counter"}, {"temperature", "counter"},
+			{"temperature", "counter", "unsigned", "string", "bool"},
+		},
+		Values_list: [][]interface{}{
+			{float64(42.55), int64(987654321)},
+			{float64(56.24), int64(123456789)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+		},
+		DataTypes_list: [][]client.TSDataType{
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+		},
+		Timestamp_list: []int64{
+			const_TestTimestamp.Unix(), const_TestTimestamp.Unix(), const_TestTimestamp.Unix(),
+		},
+	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_03, test_client.Log))
 }
 
