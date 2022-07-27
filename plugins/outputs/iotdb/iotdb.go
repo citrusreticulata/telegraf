@@ -35,7 +35,7 @@ type IoTDB struct {
 }
 
 type RecordsWithTags struct {
-	// IoTDB Records basic data strut
+	// IoTDB Records basic data struct
 	DeviceId_list     []string
 	Measurements_list [][]string
 	Values_list       [][]interface{}
@@ -83,7 +83,6 @@ func (s *IoTDB) Init() error {
 
 func (s *IoTDB) Connect() error {
 	// Make any connection required here
-	// Check the configuration
 	config := &client.Config{
 		Host:     s.Host,
 		Port:     s.Port,
@@ -124,7 +123,7 @@ func (s *IoTDB) Write(metrics []telegraf.Metric) error {
 	// status, err := s.session.InsertRecords(deviceId_list, measurements_list, dataTypes_list, values_list, timestamp_list)
 	err = s.WriteRecordsWithTags(records_withTags)
 	if err != nil {
-		s.Log.Errorf(err.Error())
+		s.Log.Errorf("IoTDB Write Error: %s", err.Error())
 	}
 	return err
 }
@@ -148,7 +147,7 @@ func (s *IoTDB) getDataTypeAndValue(value interface{}) (client.TSDataType, inter
 		} else if s.ConvertUint64To == "ForceToInt64" {
 			return client.INT64, int64(v)
 		} else if s.ConvertUint64To == "Text" {
-			return client.TEXT, fmt.Sprintf("%d", value)
+			return client.TEXT, fmt.Sprintf("%d", v)
 		} else {
 			s.Log.Errorf("unknown converstaion configuration of 'convertUint64To': %s", s.ConvertUint64To)
 			return client.UNKNOW, int64(0)
@@ -203,7 +202,7 @@ func (s *IoTDB) ConvertMetricsToRecordsWithTags(metrics []telegraf.Metric) (*Rec
 			s.Log.Errorf(errorMsg)
 			return nil, errors.New(errorMsg)
 		}
-		// append all metric date of this record to list
+		// append all metric data of this record to lists
 		deviceId_list = append(deviceId_list, metric.Name())
 		measurements_list = append(measurements_list, keys)
 		values_list = append(values_list, values)

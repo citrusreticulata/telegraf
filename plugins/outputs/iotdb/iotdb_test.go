@@ -74,7 +74,7 @@ func generateTestMetric(
 
 var (
 	const_TestTimestamp = time.Date(2022, time.July, 20, 12, 25, 33, 44, time.UTC)
-	testMetrics         = []telegraf.Metric{
+	testMetrics_01      = []telegraf.Metric{
 		generateTestMetric(
 			"root.computer.fan",
 			[]telegraf.Tag{
@@ -89,7 +89,7 @@ var (
 		),
 		generateTestMetric(
 			"root.computer.fan",
-			[]telegraf.Tag{
+			[]telegraf.Tag{ // same keys in different order
 				{Key: "owner", Value: "gpu"},
 				{Key: "price", Value: "cheap"},
 			},
@@ -105,9 +105,20 @@ var (
 			[]telegraf.Field{
 				{Key: "temperature", Value: float64(30.33)},
 				{Key: "counter", Value: int64(123456789)},
-				{Key: "unsigned", Value: uint64(math.MaxInt64 + 1000)},
+				{Key: "unsigned_big", Value: uint64(math.MaxInt64 + 1000)},
 				{Key: "string", Value: "Made in China."},
 				{Key: "bool", Value: bool(false)},
+				{Key: "int_text", Value: "123456789011"},
+			},
+			const_TestTimestamp,
+		),
+	}
+	testMetrics_02 = []telegraf.Metric{
+		generateTestMetric(
+			"root.computer.mouse",
+			[]telegraf.Tag{},
+			[]telegraf.Field{
+				{Key: "unsigned_big", Value: uint64(math.MaxInt64 + 1000)},
 			},
 			const_TestTimestamp,
 		),
@@ -185,6 +196,23 @@ func compareRecords(rwt1 *RecordsWithTags, rwt2 *RecordsWithTags, Log telegraf.L
 	return true
 }
 
+// util function, test 'Write' with given session and config
+func test_Connect_WriteMetricInThisConf(s *IoTDB, metrics []telegraf.Metric) error {
+	conn_err := s.Connect()
+	if conn_err != nil {
+		return conn_err
+	}
+	write_err := s.Write(metrics)
+	if write_err != nil {
+		return write_err
+	}
+	close_err := s.Close()
+	if close_err != nil {
+		return close_err
+	}
+	return nil
+}
+
 // Test defualt configuration, uint64 -> int64
 func TestMetricConvertion_01(t *testing.T) {
 	var test_client = &IoTDB{
@@ -198,29 +226,30 @@ func TestMetricConvertion_01(t *testing.T) {
 	}
 	test_client.Log = testutil.Logger{}
 
-	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
+	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics_01)
 	require.NoError(t, err)
 	var testRecordsWithTags_01 = RecordsWithTags{
 		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
 		Measurements_list: [][]string{
 			{"temperature", "counter"}, {"temperature", "counter"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
+			{"temperature", "counter", "unsigned_big", "string", "bool", "int_text"},
 		},
 		Values_list: [][]interface{}{
 			{float64(42.55), int64(987654321)},
 			{float64(56.24), int64(123456789)},
-			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false), "123456789011"},
 		},
 		DataTypes_list: [][]client.TSDataType{
 			{client.DOUBLE, client.INT64},
 			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN, client.TEXT},
 		},
 		Timestamp_list: []int64{
 			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
 		},
 	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_01, test_client.Log))
+	require.NoError(t, test_Connect_WriteMetricInThisConf(test_client, testMetrics_01))
 }
 
 // Test converting uint64 to text.
@@ -236,29 +265,17 @@ func TestMetricConvertion_02(t *testing.T) {
 	}
 	test_client.Log = testutil.Logger{}
 
-	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
+	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics_02)
 	require.NoError(t, err)
-	var testRecordsWithTags_02 = RecordsWithTags{
-		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
-		Measurements_list: [][]string{
-			{"temperature", "counter"}, {"temperature", "counter"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
-		},
-		Values_list: [][]interface{}{
-			{float64(42.55), int64(987654321)},
-			{float64(56.24), int64(123456789)},
-			{float64(30.33), int64(123456789), fmt.Sprintf("%d", uint64(math.MaxInt64+1000)), "Made in China.", bool(false)},
-		},
-		DataTypes_list: [][]client.TSDataType{
-			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64, client.TEXT, client.TEXT, client.BOOLEAN},
-		},
-		Timestamp_list: []int64{
-			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
-		},
+	testRecordsWithTags_02 := RecordsWithTags{
+		DeviceId_list:     []string{"root.computer.mouse"},
+		Measurements_list: [][]string{{"unsigned_big"}},
+		Values_list:       [][]interface{}{{fmt.Sprintf("%d", uint64(math.MaxInt64+1000))}},
+		DataTypes_list:    [][]client.TSDataType{{client.TEXT}},
+		Timestamp_list:    []int64{const_TestTimestamp.UnixNano()},
 	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_02, test_client.Log))
+	require.NoError(t, test_Connect_WriteMetricInThisConf(test_client, testMetrics_02))
 }
 
 // Test time unit second.
@@ -274,29 +291,30 @@ func TestMetricConvertion_03(t *testing.T) {
 	}
 	test_client.Log = testutil.Logger{}
 
-	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
+	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics_01)
 	require.NoError(t, err)
 	var testRecordsWithTags_03 = RecordsWithTags{
 		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
 		Measurements_list: [][]string{
 			{"temperature", "counter"}, {"temperature", "counter"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
+			{"temperature", "counter", "unsigned_big", "string", "bool", "int_text"},
 		},
 		Values_list: [][]interface{}{
 			{float64(42.55), int64(987654321)},
 			{float64(56.24), int64(123456789)},
-			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false), "123456789011"},
 		},
 		DataTypes_list: [][]client.TSDataType{
 			{client.DOUBLE, client.INT64},
 			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN, client.TEXT},
 		},
 		Timestamp_list: []int64{
 			const_TestTimestamp.Unix(), const_TestTimestamp.Unix(), const_TestTimestamp.Unix(),
 		},
 	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_03, test_client.Log))
+	require.NoError(t, test_Connect_WriteMetricInThisConf(test_client, testMetrics_01))
 }
 
 // Test Tags modification in method 'Measurements'
@@ -312,7 +330,7 @@ func TestTagsConvertion_05(t *testing.T) {
 	}
 	test_client.Log = testutil.Logger{}
 
-	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
+	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics_01)
 	require.NoError(t, err)
 	err = test_client.ModifiyRecordsWithTags(result)
 	require.NoError(t, err)
@@ -320,23 +338,24 @@ func TestTagsConvertion_05(t *testing.T) {
 		DeviceId_list: []string{"root.computer.fan", "root.computer.fan", "root.computer.keyboard"},
 		Measurements_list: [][]string{
 			{"temperature", "counter", "owner", "price"}, {"temperature", "counter", "owner", "price"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
+			{"temperature", "counter", "unsigned_big", "string", "bool", "int_text"},
 		},
 		Values_list: [][]interface{}{
 			{float64(42.55), int64(987654321), "cpu", "expensive"},
 			{float64(56.24), int64(123456789), "gpu", "cheap"},
-			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false), "123456789011"},
 		},
 		DataTypes_list: [][]client.TSDataType{
 			{client.DOUBLE, client.INT64, client.TEXT, client.TEXT},
 			{client.DOUBLE, client.INT64, client.TEXT, client.TEXT},
-			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN, client.TEXT},
 		},
 		Timestamp_list: []int64{
 			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
 		},
 	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_05, test_client.Log))
+	require.NoError(t, test_Connect_WriteMetricInThisConf(test_client, testMetrics_01))
 }
 
 // Test Tags modification in method 'DeviceID_subtree'
@@ -352,7 +371,7 @@ func TestTagsConvertion_06(t *testing.T) {
 	}
 	test_client.Log = testutil.Logger{}
 
-	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics)
+	result, err := test_client.ConvertMetricsToRecordsWithTags(testMetrics_01)
 	require.NoError(t, err)
 	err = test_client.ModifiyRecordsWithTags(result)
 	require.NoError(t, err)
@@ -360,21 +379,22 @@ func TestTagsConvertion_06(t *testing.T) {
 		DeviceId_list: []string{"root.computer.fan.cpu.expensive", "root.computer.fan.gpu.cheap", "root.computer.keyboard"},
 		Measurements_list: [][]string{
 			{"temperature", "counter"}, {"temperature", "counter"},
-			{"temperature", "counter", "unsigned", "string", "bool"},
+			{"temperature", "counter", "unsigned_big", "string", "bool", "int_text"},
 		},
 		Values_list: [][]interface{}{
 			{float64(42.55), int64(987654321)},
 			{float64(56.24), int64(123456789)},
-			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false)},
+			{float64(30.33), int64(123456789), int64(math.MaxInt64), "Made in China.", bool(false), "123456789011"},
 		},
 		DataTypes_list: [][]client.TSDataType{
 			{client.DOUBLE, client.INT64},
 			{client.DOUBLE, client.INT64},
-			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN},
+			{client.DOUBLE, client.INT64, client.INT64, client.TEXT, client.BOOLEAN, client.TEXT},
 		},
 		Timestamp_list: []int64{
 			const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(), const_TestTimestamp.UnixNano(),
 		},
 	}
 	require.True(t, compareRecords(result, &testRecordsWithTags_06, test_client.Log))
+	require.NoError(t, test_Connect_WriteMetricInThisConf(test_client, testMetrics_01))
 }
