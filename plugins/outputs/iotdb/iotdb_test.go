@@ -16,8 +16,8 @@ import (
 )
 
 var (
-	target_host     = "192.168.134.130" // The server's ip that you want to connect to.
-	target_port     = "6667"            // The server's port that you want to connect to.
+	target_host     = "localhost" // The server's (ip) address that you want to connect to.
+	target_port     = "6667"      // The server's port that you want to connect to.
 	target_user     = "root"
 	target_password = "root"
 )
@@ -90,8 +90,8 @@ var (
 		generateTestMetric(
 			"root.computer.fan",
 			[]telegraf.Tag{
-				{Key: "price", Value: "cheap"},
 				{Key: "owner", Value: "gpu"},
+				{Key: "price", Value: "cheap"},
 			},
 			[]telegraf.Field{
 				{Key: "temperature", Value: float64(56.24)},
@@ -185,6 +185,7 @@ func compareRecords(rwt1 *RecordsWithTags, rwt2 *RecordsWithTags, Log telegraf.L
 	return true
 }
 
+// Test defualt configuration, uint64 -> int64
 func TestMetricConvertion_01(t *testing.T) {
 	var test_client = &IoTDB{
 		Host:            target_host,
@@ -222,6 +223,7 @@ func TestMetricConvertion_01(t *testing.T) {
 	require.True(t, compareRecords(result, &testRecordsWithTags_01, test_client.Log))
 }
 
+// Test converting uint64 to text.
 func TestMetricConvertion_02(t *testing.T) {
 	var test_client = &IoTDB{
 		Host:            target_host,
@@ -259,6 +261,7 @@ func TestMetricConvertion_02(t *testing.T) {
 	require.True(t, compareRecords(result, &testRecordsWithTags_02, test_client.Log))
 }
 
+// Test time unit second.
 func TestMetricConvertion_03(t *testing.T) {
 	var test_client = &IoTDB{
 		Host:            target_host,
@@ -296,6 +299,7 @@ func TestMetricConvertion_03(t *testing.T) {
 	require.True(t, compareRecords(result, &testRecordsWithTags_03, test_client.Log))
 }
 
+// Test Tags modification in method 'Measurements'
 func TestTagsConvertion_05(t *testing.T) {
 	var test_client = &IoTDB{
 		Host:            target_host,
@@ -335,6 +339,7 @@ func TestTagsConvertion_05(t *testing.T) {
 	require.True(t, compareRecords(result, &testRecordsWithTags_05, test_client.Log))
 }
 
+// Test Tags modification in method 'DeviceID_subtree'
 func TestTagsConvertion_06(t *testing.T) {
 	var test_client = &IoTDB{
 		Host:            target_host,
