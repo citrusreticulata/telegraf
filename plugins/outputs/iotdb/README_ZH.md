@@ -48,8 +48,8 @@ IoTDB 输出插件可以把 Telegraf 采集到的数据保存到IoTDB数据库�
 
 ## 注意事项
 
-1. IoTDB 0.13.x版本以及之前的版本，**不支持无符号整数**。所以本插件提供了三种可选的无符号整数处理方式，只需要指定参数`convertUint64To`的取值即可。该参数有三个取值，分别对应不同的处理放肆，分别是：
-   - `ToInt64`，默认的处理方式。对于未超出`int64`表示范围的无符号整数，以`int64`类型存储；如果超出表示范围，则保存`math.MaxInt64`，也即`9223372036854775807`。
+1. IoTDB 0.13.x版本以及之前的版本，**不支持无符号整数**。所以本插件提供了三种可选的无符号整数处理方式，只需要指定参数`convertUint64To`的取值即可。该参数有三个取值，分别对应不同的处理方式，分别是：
+   - `ToInt64`，默认的处理方式。对于未超出`int64`表示范围的无符号整数，以`int64`类型存储；如果超出表示范围，则保存`math.MaxInt64`，也即9223372036854775807。
    - `ForceToInt64`，强制类型转换为`int64`。如果数字超过`int64`表示范围，可能会抛出异常。
    - `Text`，强制转换为字符串。无论无符号整型多大，都会被转换为字符串保存，不丢失精度。
 
@@ -58,7 +58,7 @@ IoTDB 输出插件可以把 Telegraf 采集到的数据保存到IoTDB数据库�
 3. IoTDB目前不能很好地支持标签（Tag）索引，目前采用的处理方式请参考[InfluxDB-Protocol适配器](https://iotdb.apache.org/zh/UserGuide/Master/API/InfluxDB-Protocol.html)。用户需要指定参数`treateTagsAs`的取值，来决定如何处理标签：
 
    - `Measurements`，Tag会被看做一个普通的物理量，等同于Field。只不过Tag的取值总是字符串。
-   - `DeviceID_subtree`，Tag会被看做设备标识路径（device id）的一部分。Tags的顺序是有序的，该顺序由Telegraf决定，一般为字典序升序排列。
+   - `DeviceID_subtree`，默认的处理方式。Tag会被看做设备标识路径（device id）的一部分。Tags的顺序是有序的，该顺序由Telegraf决定，一般为字典序升序排列。
 
    举例：当一个metric的取值为，`Name="root.sg.device", Tags={tag1="private", tag2="working"}, Fields={s1=100, s2="hello"}`。此时不同参数对应的处理结果为：
 
@@ -67,4 +67,65 @@ IoTDB 输出插件可以把 Telegraf 采集到的数据保存到IoTDB数据库�
 
 ## 测试
 
-本插件自带测试。
+本插件自带测试。但测试前**首先需要开启IoTDB数据库**，默认地址为`localhost:6667`。若要修改测试地址，可以修改`iotdb_test.go`中的`test_host`等全局变量。
+
+测试内容主要包括：数据库连接、配置纠错、数据类型转换、数据写入等。
+
+## 配置文件
+
+```properties
+# 将采集到的数据保存到IoTDB
+[[outputs.iotdb]]
+  ## IoTDB 服务器配置
+  ## host 是IoTDB服务器的ip地址
+  ## port 是IoTDB服务器的端口号
+  host = "127.0.0.1"
+  port = "6667"
+
+  ## 认证配置
+  ## user是用户名，默认是'root', password是密码，默认是'root'
+  user = "root"
+  password = "root"
+
+  ## 会话相关配置
+  ## timeout是连接超时时间，单位是毫秒(ms)。该数值类型必须是int，0表示不设定超时。
+  ## 负数会被当做0来看待。
+  timeout = 5000
+
+  ## 无符号整型的转换配置
+  ## IoTDB 不支持无符号整数(版本 13.x).
+  ## 对 uint32, 此插件会直接将其转换为 int64.
+  ## 但是遇到 unit64 类型的数字时，该操作可能导致溢出，所以用户必须制定下面的一个可选的转换方案。
+  ## 
+  ## 本插件支持3种转换uint64的方式 : 
+  ## - "ForceToInt64": 无论其数值多大，强制转换为 int64.
+  ## - "ToInt64"(默认): 如果数字比 MAXINT64 小, 转换为 int64; 否则，转换为 MAXINT64。
+  ##              math.MaxInt64 = 9223372036854775807
+  ## - "Text": 无论数值多大，总是转换为字符串保存。在IoTDB中，字符串类型称为TEXT.
+  convertUint64To = "ToInt64"
+
+  ## 时间戳(timestamp)的相关配置
+  ## 时间戳总是以int64的形式存储。timeStampUnit 指定了时间戳使用的单位. 如下是该变量的可用值:
+  ## "second", "millisecond", "microsecond", "nanosecond"(默认)
+  timeStampUnit = "nanosecond"
+
+  ## 处理标签(Tags)的相关配置
+  ## IoTDB不完全支持Tag的索引，但是也有为了兼容InfluxDB-Protocol所设计的解决方案，可以看这里：
+  ##     https://iotdb.apache.org/zh/UserGuide/Master/API/InfluxDB-Protocol.html
+  ## 
+  ## 本插件提供两种可用的方式来处理标签：
+  ## - "Measurements": 将标签看做物理量(measurements). 每个标签都有Key到Value的对构成，
+  ##                        所以把Key当做被测物理量的名称，Value当做其取值，转化为
+  ##                        Measurement, Value, DataType.
+  ## - "DeviceID_subtree"(默认): 把标签看做设备标识号(deviceID)的组成部分. 标签是'Name'的子树.
+  ##
+  ## 例如，当一个metric的取值为:
+  ##      Name="root.sg.device", Tags={tag1="private", tag2="working"}, Fields={s1=100, s2="hello"}
+  ## - 在"Measurements"模式下得到的record为:
+  ##      root.sg.device, s1=100, s2="hello", tag1="private", tag2="working"
+  ## - 在"DeviceID_subtree"模式下得到的record为:
+  ##      root.sg.device.private.working, s1=100, s2="hello"
+  treateTagsAs = "DeviceID_subtree"
+
+```
+

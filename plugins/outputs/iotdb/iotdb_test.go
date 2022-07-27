@@ -16,18 +16,18 @@ import (
 )
 
 var (
-	target_host     = "localhost" // The server's (ip) address that you want to connect to.
-	target_port     = "6667"      // The server's port that you want to connect to.
-	target_user     = "root"
-	target_password = "root"
+	test_host     = "localhost" // The server's (ip) address that you want to connect to.
+	test_port     = "6667"      // The server's port that you want to connect to.
+	test_user     = "root"
+	test_password = "root"
 )
 
 func TestConnectAndClose(t *testing.T) {
 	test_client := &IoTDB{
-		Host:     target_host,
-		Port:     target_port,
-		User:     target_user,
-		Password: target_password,
+		Host:     test_host,
+		Port:     test_port,
+		User:     test_user,
+		Password: test_password,
 	}
 	test_client.Log = testutil.Logger{}
 
@@ -40,10 +40,10 @@ func TestConnectAndClose(t *testing.T) {
 
 func TestInitAndConnect(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:     target_host,
-		Port:     target_port,
-		User:     target_user,
-		Password: target_password,
+		Host:     test_host,
+		Port:     test_port,
+		User:     test_user,
+		Password: test_password,
 	}
 	test_client.Log = testutil.Logger{}
 
@@ -216,10 +216,10 @@ func test_Connect_WriteMetricInThisConf(s *IoTDB, metrics []telegraf.Metric) err
 // Test defualt configuration, uint64 -> int64
 func TestMetricConvertion_01(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:            target_host,
-		Port:            target_port,
-		User:            target_user,
-		Password:        target_password,
+		Host:            test_host,
+		Port:            test_port,
+		User:            test_user,
+		Password:        test_password,
 		ConvertUint64To: "ToInt64",
 		TimeStampUnit:   "nanosecond",
 		TreateTagsAs:    "Measurements",
@@ -255,10 +255,10 @@ func TestMetricConvertion_01(t *testing.T) {
 // Test converting uint64 to text.
 func TestMetricConvertion_02(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:            target_host,
-		Port:            target_port,
-		User:            target_user,
-		Password:        target_password,
+		Host:            test_host,
+		Port:            test_port,
+		User:            test_user,
+		Password:        test_password,
 		ConvertUint64To: "Text",
 		TimeStampUnit:   "nanosecond",
 		TreateTagsAs:    "Measurements",
@@ -281,10 +281,10 @@ func TestMetricConvertion_02(t *testing.T) {
 // Test time unit second.
 func TestMetricConvertion_03(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:            target_host,
-		Port:            target_port,
-		User:            target_user,
-		Password:        target_password,
+		Host:            test_host,
+		Port:            test_port,
+		User:            test_user,
+		Password:        test_password,
 		ConvertUint64To: "ToInt64",
 		TimeStampUnit:   "second",
 		TreateTagsAs:    "Measurements",
@@ -320,10 +320,10 @@ func TestMetricConvertion_03(t *testing.T) {
 // Test Tags modification in method 'Measurements'
 func TestTagsConvertion_05(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:            target_host,
-		Port:            target_port,
-		User:            target_user,
-		Password:        target_password,
+		Host:            test_host,
+		Port:            test_port,
+		User:            test_user,
+		Password:        test_password,
 		ConvertUint64To: "ToInt64",
 		TimeStampUnit:   "nanosecond",
 		TreateTagsAs:    "Measurements",
@@ -361,10 +361,10 @@ func TestTagsConvertion_05(t *testing.T) {
 // Test Tags modification in method 'DeviceID_subtree'
 func TestTagsConvertion_06(t *testing.T) {
 	var test_client = &IoTDB{
-		Host:            target_host,
-		Port:            target_port,
-		User:            target_user,
-		Password:        target_password,
+		Host:            test_host,
+		Port:            test_port,
+		User:            test_user,
+		Password:        test_password,
 		ConvertUint64To: "ToInt64",
 		TimeStampUnit:   "nanosecond",
 		TreateTagsAs:    "DeviceID_subtree",
